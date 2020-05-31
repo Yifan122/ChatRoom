@@ -1,7 +1,5 @@
 package net.qiujuer.lesson.sample.server.handle;
 
-
-import lombok.Getter;
 import net.qiujuer.library.clink.utils.CloseUtils;
 
 import java.io.*;
@@ -14,7 +12,6 @@ public class ClientHandler {
     private final ClientReadHandler readHandler;
     private final ClientWriteHandler writeHandler;
     private final ClientHandlerCallback clientHandlerCallback;
-    @Getter
     private final String clientInfo;
 
     public ClientHandler(Socket socket, ClientHandlerCallback clientHandlerCallback) throws IOException {
@@ -25,6 +22,10 @@ public class ClientHandler {
         this.clientInfo = "A[" + socket.getInetAddress() + "]" +
                 " P:" + socket.getPort();
         System.out.println("新客户端连接：" + clientInfo);
+    }
+
+    public String getClientInfo() {
+        return clientInfo;
     }
 
     public void exit() {
