@@ -7,14 +7,19 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-public class TCPServer {
+public class TCPServer implements ClientHandler.ClientHandlerCallback {
     private final int port;
     private ClientListener mListener;
+    private final ExecutorService msgForwardThreadPool;
+    // multi-thread need synchronized
     private List<ClientHandler> clientHandlerList = new ArrayList<>();
 
     public TCPServer(int port) {
         this.port = port;
+        this.msgForwardThreadPool = Executors.newSingleThreadExecutor();
     }
 
     public boolean start() {
@@ -34,17 +39,40 @@ public class TCPServer {
             mListener.exit();
         }
 
-        for (ClientHandler clientHandler : clientHandlerList) {
-            clientHandler.exit();
+        synchronized (TCPServer.this) {
+            for (ClientHandler clientHandler : clientHandlerList) {
+                clientHandler.exit();
+            }
         }
 
         clientHandlerList.clear();
+
+        msgForwardThreadPool.shutdownNow();
     }
 
-    public void broadcast(String str) {
+    public synchronized void broadcast(String str) {
         for (ClientHandler clientHandler : clientHandlerList) {
             clientHandler.send(str);
         }
+    }
+
+    @Override
+    public synchronized void onSelfClosed(ClientHandler handler) {
+        clientHandlerList.remove(handler);
+    }
+
+    @Override
+    public synchronized void onNewMessageArrive(ClientHandler clientHandler, String msg) {
+        System.out.println(clientHandler.getClientInfo() + "-msg received: " + msg);
+        // forward msg
+        msgForwardThreadPool.execute(() -> {
+            for (ClientHandler handler : clientHandlerList) {
+                if (handler == clientHandler)
+                    continue;
+
+                handler.send(msg);
+            }
+        });
     }
 
     private class ClientListener extends Thread {
@@ -73,7 +101,7 @@ public class TCPServer {
                 try {
                     // 客户端构建异步线程
                     ClientHandler clientHandler = new ClientHandler(client,
-                            handler -> clientHandlerList.remove(handler));
+                            TCPServer.this);
                     // 读取数据并打印
                     clientHandler.readToPrint();
                     clientHandlerList.add(clientHandler);

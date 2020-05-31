@@ -1,6 +1,7 @@
 package net.qiujuer.lesson.sample.server.handle;
 
 
+import lombok.Getter;
 import net.qiujuer.library.clink.utils.CloseUtils;
 
 import java.io.*;
@@ -13,14 +14,17 @@ public class ClientHandler {
     private final ClientReadHandler readHandler;
     private final ClientWriteHandler writeHandler;
     private final ClientHandlerCallback clientHandlerCallback;
+    @Getter
+    private final String clientInfo;
 
     public ClientHandler(Socket socket, ClientHandlerCallback clientHandlerCallback) throws IOException {
         this.socket = socket;
         this.readHandler = new ClientReadHandler(socket.getInputStream());
         this.writeHandler = new ClientWriteHandler(socket.getOutputStream());
         this.clientHandlerCallback = clientHandlerCallback;
-        System.out.println("新客户端连接：" + socket.getInetAddress() +
-                " P:" + socket.getPort());
+        this.clientInfo = "A[" + socket.getInetAddress() + "]" +
+                " P:" + socket.getPort();
+        System.out.println("新客户端连接：" + clientInfo);
     }
 
     public void exit() {
@@ -49,7 +53,7 @@ public class ClientHandler {
         void onSelfClosed(ClientHandler handler);
 
         // 收到消息时通知
-        void onNewMessageArrive(ClientHandler clientHandler, String msg);                                                            
+        void onNewMessageArrive(ClientHandler clientHandler, String msg);
     }
 
     class ClientReadHandler extends Thread {
@@ -76,8 +80,9 @@ public class ClientHandler {
                         ClientHandler.this.exitBySelf();
                         break;
                     }
-                    // 打印到屏幕
-                    System.out.println(str);
+
+                    // notify TCPsever I have received msg
+                    clientHandlerCallback.onNewMessageArrive(ClientHandler.this, str);
                 } while (!done);
             } catch (Exception e) {
                 if (!done) {
@@ -113,6 +118,9 @@ public class ClientHandler {
         }
 
         void send(String str) {
+            if (done)
+                return;
+
             executorService.execute(new WriteRunnable(str));
         }
 

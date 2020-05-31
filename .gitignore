@@ -1,0 +1,6 @@
+# Project exclude paths
+/lib-clink/target/
+/sample-client/target/
+/sample-foo/target/
+/sample-server/target/
+/.idea/
