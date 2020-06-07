@@ -18,7 +18,7 @@ public class IoArgs {
     }
 
     public String bufferString() {
-        return new String(byteBuffer, 0, buffer.position());
+        return new String(byteBuffer, 0, buffer.position() - 1);
     }
 
     public interface IoArgsEventListener {

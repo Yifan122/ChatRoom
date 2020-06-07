@@ -1,9 +1,8 @@
 package net.qiujuer.library.clink.core;
 
-import java.io.Closeable;
 import java.io.IOException;
 
-public class IoContext implements Closeable {
+public class IoContext {
     private static IoContext INSTANCE;
     // ioProvider 针对所有连接
     private final IoProvider ioProvider;
@@ -16,12 +15,21 @@ public class IoContext implements Closeable {
         return INSTANCE;
     }
 
+    public static void close() throws IOException {
+        if (INSTANCE != null) {
+            INSTANCE.closeBySelf();
+        }
+    }
+
     public static StartedBoot setup() {
         return new StartedBoot();
     }
 
-    @Override
-    public void close() throws IOException {
+    public IoProvider getIoProvider() {
+        return ioProvider;
+    }
+
+    public void closeBySelf() throws IOException {
         ioProvider.close();
     }
 

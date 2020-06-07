@@ -85,7 +85,6 @@ public class TCPServer implements ClientHandler.ClientHandlerCallback {
 
     @Override
     public synchronized void onNewMessageArrive(ClientHandler clientHandler, String msg) {
-        System.out.println(clientHandler.getClientInfo() + "-msg received: " + msg);
         // forward msg
         msgForwardThreadPool.execute(() -> {
             for (ClientHandler handler : clientHandlerList) {
@@ -132,8 +131,6 @@ public class TCPServer implements ClientHandler.ClientHandlerCallback {
                                 // 客户端构建异步线程
                                 ClientHandler clientHandler = new ClientHandler(socketChannel,
                                         TCPServer.this);
-                                // 读取数据并打印
-                                clientHandler.readToPrint();
                                 clientHandlerList.add(clientHandler);
                             } catch (IOException e) {
                                 e.printStackTrace();

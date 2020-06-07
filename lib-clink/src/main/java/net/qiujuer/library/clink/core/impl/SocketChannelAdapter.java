@@ -2,7 +2,7 @@ package net.qiujuer.library.clink.core.impl;
 
 import net.qiujuer.library.clink.core.IoArgs;
 import net.qiujuer.library.clink.core.IoProvider;
-import net.qiujuer.library.clink.core.Recivier;
+import net.qiujuer.library.clink.core.Receiver;
 import net.qiujuer.library.clink.core.Sender;
 import net.qiujuer.library.clink.utils.CloseUtils;
 
@@ -11,7 +11,7 @@ import java.io.IOException;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class SocketChannelAdapter implements Sender, Recivier, Closeable {
+public class SocketChannelAdapter implements Sender, Receiver, Closeable {
     private final AtomicBoolean isClosed = new AtomicBoolean(false);
     private final SocketChannel channel;
     private final IoProvider ioProvider;
@@ -42,7 +42,9 @@ public class SocketChannelAdapter implements Sender, Recivier, Closeable {
             }
         }
     };
+
     private IoArgs.IoArgsEventListener sendIoEventListener;
+
     private final IoProvider.HandleOutputCallBack outputCallBack = new IoProvider.HandleOutputCallBack() {
         @Override
         public void canProviderOutput(Object attach) {
