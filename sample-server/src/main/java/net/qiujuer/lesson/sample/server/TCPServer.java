@@ -104,10 +104,11 @@ public class TCPServer implements ClientHandler.ClientHandlerCallback {
             super.run();
 
             System.out.println("服务器准备就绪～");
+            Selector selector = TCPServer.this.selector;
             // 等待客户端连接
             do {
                 try {
-                    Selector selector = TCPServer.this.selector;
+                    // select() 是一个堵塞状态
                     if (selector.select() == 0) {
                         if (done) {
                             break;
