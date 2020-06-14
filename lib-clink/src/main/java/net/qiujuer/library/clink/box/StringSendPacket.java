@@ -2,11 +2,14 @@ package net.qiujuer.library.clink.box;
 
 import net.qiujuer.library.clink.core.SendPacket;
 
+import java.io.IOException;
+
 public class StringSendPacket extends SendPacket {
     protected final byte[] bytes;
 
     public StringSendPacket(String msg) {
         bytes = msg.getBytes();
+        length = bytes.length;
     }
 
     @Override
@@ -14,4 +17,8 @@ public class StringSendPacket extends SendPacket {
         return bytes;
     }
 
+    @Override
+    public void close() throws IOException {
+
+    }
 }

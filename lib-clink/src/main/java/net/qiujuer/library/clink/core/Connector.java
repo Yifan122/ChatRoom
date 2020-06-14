@@ -3,6 +3,8 @@ package net.qiujuer.library.clink.core;
 import net.qiujuer.library.clink.box.StringReceivePacket;
 import net.qiujuer.library.clink.box.StringSendPacket;
 import net.qiujuer.library.clink.core.impl.SocketChannelAdapter;
+import net.qiujuer.library.clink.core.impl.async.AsyncReceiveDispatcher;
+import net.qiujuer.library.clink.core.impl.async.AsyncSendDispatcher;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -15,6 +17,7 @@ public class Connector implements Closeable, SocketChannelAdapter.OnChannelStatu
     private Sender sender;
     private Receiver receiver;
     private SendDispatcher sendDispatcher;
+    private ReceiveDispatcher receiveDispatcher;
     private ReceivePacket receivePacket;
     private IoArgs.IoArgsEventListener echoReceiveListener = new IoArgs.IoArgsEventListener() {
         @Override
@@ -24,9 +27,7 @@ public class Connector implements Closeable, SocketChannelAdapter.OnChannelStatu
 
         @Override
         public void onCompleted(IoArgs args) {
-            onReceiveNewMessage(args.bufferString());
-            // 读取下一条数据
-            readNextMessage();
+
         }
     };
 
@@ -49,7 +50,10 @@ public class Connector implements Closeable, SocketChannelAdapter.OnChannelStatu
         this.sender = adapter;
         this.receiver = adapter;
 
-        readNextMessage();
+        sendDispatcher = new AsyncSendDispatcher(sender);
+        receiveDispatcher = new AsyncReceiveDispatcher(receiver, receivePacketCallback);
+
+        receiveDispatcher.start();
     }
 
     public void send(String msg) {
@@ -57,19 +61,15 @@ public class Connector implements Closeable, SocketChannelAdapter.OnChannelStatu
         sendDispatcher.send(packet);
     }
 
-    private void readNextMessage() {
-        if (receiver != null) {
-            try {
-                receiver.receiveAsync(echoReceiveListener);
-            } catch (IOException e) {
-                System.out.println("接受数据异常： " + e.getMessage());
-            }
-        }
-    }
 
     @Override
     public void close() throws IOException {
+        receiveDispatcher.close();
+        sendDispatcher.close();
 
+        sender.close();
+        receiver.close();
+        channel.close();
     }
 
     @Override
