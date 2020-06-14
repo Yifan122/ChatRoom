@@ -1,5 +1,7 @@
 package net.qiujuer.library.clink.core;
 
+import net.qiujuer.library.clink.box.StringReceivePacket;
+import net.qiujuer.library.clink.box.StringSendPacket;
 import net.qiujuer.library.clink.core.impl.SocketChannelAdapter;
 
 import java.io.Closeable;
@@ -12,6 +14,8 @@ public class Connector implements Closeable, SocketChannelAdapter.OnChannelStatu
     private SocketChannel channel;
     private Sender sender;
     private Receiver receiver;
+    private SendDispatcher sendDispatcher;
+    private ReceivePacket receivePacket;
     private IoArgs.IoArgsEventListener echoReceiveListener = new IoArgs.IoArgsEventListener() {
         @Override
         public void onStarted(IoArgs args) {
@@ -26,6 +30,16 @@ public class Connector implements Closeable, SocketChannelAdapter.OnChannelStatu
         }
     };
 
+    private ReceiveDispatcher.ReceivePacketCallback receivePacketCallback = new ReceiveDispatcher.ReceivePacketCallback() {
+        @Override
+        public void onReceivePacketCompleted(ReceivePacket packet) {
+            if (packet instanceof StringReceivePacket) {
+                String msg = ((StringReceivePacket) packet).string();
+                onReceiveNewMessage(msg);
+            }
+        }
+    };
+
     public void setUp(SocketChannel channel) throws IOException {
         this.channel = channel;
 
@@ -36,6 +50,11 @@ public class Connector implements Closeable, SocketChannelAdapter.OnChannelStatu
         this.receiver = adapter;
 
         readNextMessage();
+    }
+
+    public void send(String msg) {
+        StringSendPacket packet = new StringSendPacket(msg);
+        sendDispatcher.send(packet);
     }
 
     private void readNextMessage() {
@@ -61,4 +80,5 @@ public class Connector implements Closeable, SocketChannelAdapter.OnChannelStatu
     protected void onReceiveNewMessage(String str) {
         System.out.println(key.toString() + ":" + str);
     }
+
 }

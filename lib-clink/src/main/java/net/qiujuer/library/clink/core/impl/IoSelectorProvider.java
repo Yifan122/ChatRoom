@@ -40,79 +40,6 @@ public class IoSelectorProvider implements IoProvider {
         startWrite();
     }
 
-    private static void waitSelection(AtomicBoolean locker) {
-        //noinspection SynchronizationOnLocalVariableOrMethodParameter
-        synchronized (locker) {
-            if (locker.get()) {
-                try {
-                    locker.wait();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-    }
-
-    private static void handleSelection(SelectionKey key, int keyOps, HashMap<SelectionKey, Runnable> map, ExecutorService handlePool) {
-        // 取消对keyOps 的继续监听
-        key.interestOps(key.readyOps() & ~keyOps);
-
-        Runnable runnable = map.get(key);
-        if (runnable != null && !handlePool.isShutdown()) {
-            handlePool.execute(runnable);
-        }
-    }
-
-    private static SelectionKey registerSelection(SocketChannel channel, Selector selector,
-                                                  int registerOps, AtomicBoolean locker,
-                                                  HashMap<SelectionKey, Runnable> map,
-                                                  Runnable runnable) {
-        //noinspection SynchronizationOnLocalVariableOrMethodParameter
-        synchronized (locker) {
-            locker.set(true);
-
-            try {
-                // 唤醒当前的selector， 让selector不处于select（）状态
-                selector.wakeup();
-                SelectionKey key = null;
-                if (channel.isRegistered()) {
-                    key = channel.keyFor(selector);
-                    if (key != null) {
-                        key.interestOps(key.readyOps() | registerOps);
-                    }
-                }
-
-                if (key == null) {
-                    // 注册selector
-                    key = channel.register(selector, registerOps);
-                    map.put(key, runnable);
-                }
-                return key;
-            } catch (ClosedChannelException e) {
-                return null;
-            } finally {
-                // 解除锁定
-                locker.set(false);
-                try {
-                    locker.notifyAll();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-    }
-
-    private static void unRegisterSelection(SocketChannel channel, Selector selector, Map<SelectionKey, Runnable> map) {
-        if (channel.isRegistered()) {
-            SelectionKey key = channel.keyFor(selector);
-            if (key != null) {
-                // 取消监听
-                key.cancel();
-                map.remove(key);
-                selector.wakeup();
-            }
-        }
-    }
 
     private void startRead() {
         Thread thread = new Thread("Clink IoSelectorProvider ReadSelector Thread") {
@@ -241,4 +168,79 @@ public class IoSelectorProvider implements IoProvider {
             return t;
         }
     }
+
+    private static void waitSelection(AtomicBoolean locker) {
+        //noinspection SynchronizationOnLocalVariableOrMethodParameter
+        synchronized (locker) {
+            if (locker.get()) {
+                try {
+                    locker.wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    private static void handleSelection(SelectionKey key, int keyOps, HashMap<SelectionKey, Runnable> map, ExecutorService handlePool) {
+        // 取消对keyOps 的继续监听
+        key.interestOps(key.readyOps() & ~keyOps);
+
+        Runnable runnable = map.get(key);
+        if (runnable != null && !handlePool.isShutdown()) {
+            handlePool.execute(runnable);
+        }
+    }
+
+    private static SelectionKey registerSelection(SocketChannel channel, Selector selector,
+                                                  int registerOps, AtomicBoolean locker,
+                                                  HashMap<SelectionKey, Runnable> map,
+                                                  Runnable runnable) {
+        //noinspection SynchronizationOnLocalVariableOrMethodParameter
+        synchronized (locker) {
+            locker.set(true);
+
+            try {
+                // 唤醒当前的selector， 让selector不处于select（）状态
+                selector.wakeup();
+                SelectionKey key = null;
+                if (channel.isRegistered()) {
+                    key = channel.keyFor(selector);
+                    if (key != null) {
+                        key.interestOps(key.readyOps() | registerOps);
+                    }
+                }
+
+                if (key == null) {
+                    // 注册selector
+                    key = channel.register(selector, registerOps);
+                    map.put(key, runnable);
+                }
+                return key;
+            } catch (ClosedChannelException e) {
+                return null;
+            } finally {
+                // 解除锁定
+                locker.set(false);
+                try {
+                    locker.notifyAll();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    private static void unRegisterSelection(SocketChannel channel, Selector selector, Map<SelectionKey, Runnable> map) {
+        if (channel.isRegistered()) {
+            SelectionKey key = channel.keyFor(selector);
+            if (key != null) {
+                // 取消监听
+                key.cancel();
+                map.remove(key);
+                selector.wakeup();
+            }
+        }
+    }
+
 }
