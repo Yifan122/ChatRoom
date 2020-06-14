@@ -32,7 +32,7 @@ public class AsyncReceiveDispatcher implements ReceiveDispatcher {
                 receiverSize = Math.min(total - position, args.capacity());
             }
             // 设置本次读取的大小
-            args.limit(receiverSize);
+//            args.limit(receiverSize);
         }
 
         @Override

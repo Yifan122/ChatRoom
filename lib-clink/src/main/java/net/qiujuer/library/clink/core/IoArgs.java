@@ -35,7 +35,7 @@ public class IoArgs {
         }
         finishWriting();
 
-        return channel.read(buffer);
+        return bytesProduced;
     }
 
     public int writeTo(SocketChannel channel) throws IOException {
