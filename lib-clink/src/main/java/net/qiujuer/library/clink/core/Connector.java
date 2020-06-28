@@ -19,17 +19,7 @@ public class Connector implements Closeable, SocketChannelAdapter.OnChannelStatu
     private SendDispatcher sendDispatcher;
     private ReceiveDispatcher receiveDispatcher;
     private ReceivePacket receivePacket;
-    private IoArgs.IoArgsEventListener echoReceiveListener = new IoArgs.IoArgsEventListener() {
-        @Override
-        public void onStarted(IoArgs args) {
 
-        }
-
-        @Override
-        public void onCompleted(IoArgs args) {
-
-        }
-    };
 
     private ReceiveDispatcher.ReceivePacketCallback receivePacketCallback = new ReceiveDispatcher.ReceivePacketCallback() {
         @Override
