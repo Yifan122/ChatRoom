@@ -15,7 +15,7 @@ public class IoArgs {
         startWriting();
 
         int bytesProduced = 0;
-        while (buffer.hasRemaining() && buffer.position() < limit) {
+        while (buffer.hasRemaining()) {
             int len = channel.read(buffer);
             if (len < 0) {
                 throw new EOFException();
@@ -44,7 +44,7 @@ public class IoArgs {
         startWriting();
 
         int bytesProduced = 0;
-        while (buffer.hasRemaining() && bytesProduced < limit) {
+        while (buffer.hasRemaining()) {
             int len = channel.read(buffer);
             if (len < 0) {
                 throw new EOFException();
