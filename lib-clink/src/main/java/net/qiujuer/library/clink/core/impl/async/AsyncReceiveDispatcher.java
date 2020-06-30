@@ -1,13 +1,8 @@
 package net.qiujuer.library.clink.core.impl.async;
 
-import net.qiujuer.library.clink.box.StringReceivePacket;
-import net.qiujuer.library.clink.core.IoArgs;
-import net.qiujuer.library.clink.core.ReceiveDispatcher;
-import net.qiujuer.library.clink.core.ReceivePacket;
-import net.qiujuer.library.clink.core.Receiver;
+import net.qiujuer.library.clink.core.*;
 import net.qiujuer.library.clink.utils.CloseUtils;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
@@ -19,7 +14,7 @@ public class AsyncReceiveDispatcher implements ReceiveDispatcher, IoArgs.IoArgsE
     private AtomicBoolean isClosed = new AtomicBoolean(false);
 
     private IoArgs ioArgs = new IoArgs();
-    private ReceivePacket<ByteArrayOutputStream> packetTemp;
+    private ReceivePacket<?, ?> packetTemp;
 
     private WritableByteChannel packetChannel;
     private long total;
@@ -72,7 +67,7 @@ public class AsyncReceiveDispatcher implements ReceiveDispatcher, IoArgs.IoArgsE
         packetChannel = null;
 
         if (packet != null) {
-            callback.onReceivePacketCompleted(packet);
+            callback.onReceivedPacketCompleted(packet);
         }
     }
 
@@ -84,7 +79,9 @@ public class AsyncReceiveDispatcher implements ReceiveDispatcher, IoArgs.IoArgsE
     private void assemblePacker(IoArgs args) {
         if (packetTemp == null) {
             int length = args.readLength();
-            packetTemp = new StringReceivePacket(length);
+            byte type = length > 200 ? Packet.TYPE_STREAM_FILE : Packet.TYPE_MEMORY_STRING;
+
+            packetTemp = callback.onArrivedNewPacket(type, length);
             packetChannel = Channels.newChannel(packetTemp.open());
 
             total = length;

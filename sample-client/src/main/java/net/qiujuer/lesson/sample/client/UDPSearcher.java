@@ -1,8 +1,8 @@
 package net.qiujuer.lesson.sample.client;
 
 
+import net.qiujuer.common.constants.UDPConstants;
 import net.qiujuer.lesson.sample.client.bean.ServerInfo;
-import net.qiujuer.lesson.sample.foo.constants.UDPConstants;
 import net.qiujuer.library.clink.utils.ByteUtils;
 
 import java.io.IOException;

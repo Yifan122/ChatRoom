@@ -11,7 +11,7 @@
     <modules>
         <module>lib-clink</module>
         <module>sample-client</module>
-        <module>sample-foo</module>
+        <module>common</module>
         <module>sample-server</module>
     </modules>
     <dependencies>

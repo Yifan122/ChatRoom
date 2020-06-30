@@ -33,7 +33,7 @@ public class AsyncSendDispatcher implements SendDispatcher, IoArgs.IoArgsEventPr
 
     @Override
     public void send(SendPacket packet) {
-        boolean offer = packageQueue.offer(packet);
+        packageQueue.offer(packet);
         if (isSending.compareAndSet(false, true)) {
             sendNextPacket();
         }

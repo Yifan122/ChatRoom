@@ -1,4 +1,4 @@
-package net.qiujuer.lesson.sample.foo.constants;
+package net.qiujuer.common.constants;
 
 public class UDPConstants {
     // 公用头部

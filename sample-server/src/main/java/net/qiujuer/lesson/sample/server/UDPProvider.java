@@ -1,6 +1,6 @@
 package net.qiujuer.lesson.sample.server;
 
-import net.qiujuer.lesson.sample.foo.constants.UDPConstants;
+import net.qiujuer.common.constants.UDPConstants;
 import net.qiujuer.library.clink.utils.ByteUtils;
 
 import java.net.DatagramPacket;

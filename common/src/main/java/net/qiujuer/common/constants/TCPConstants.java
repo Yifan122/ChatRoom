@@ -1,4 +1,4 @@
-package net.qiujuer.lesson.sample.foo.constants;
+package net.qiujuer.common.constants;
 
 public class TCPConstants {
     // 服务器固化UDP接收端口
