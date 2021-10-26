@@ -11,14 +11,24 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 
 public class TCPClient {
-    private Socket socket;
-    private ReadHandler readHandler;
-    private PrintStream printStream;
+    private final Socket socket;
+    private final ReadHandler readHandler;
+    private final PrintStream printStream;
 
     public TCPClient(Socket socket, ReadHandler readHandler) throws IOException {
         this.socket = socket;
         this.readHandler = readHandler;
         this.printStream = new PrintStream(socket.getOutputStream());
+    }
+
+    public void exit() {
+        readHandler.exit();
+        CloseUtils.close(printStream);
+        CloseUtils.close(socket);
+    }
+
+    public void send(String msg) {
+        printStream.println(msg);
     }
 
     public static TCPClient startWith(ServerInfo info) throws IOException {
@@ -36,23 +46,15 @@ public class TCPClient {
         try {
             ReadHandler readHandler = new ReadHandler(socket.getInputStream());
             readHandler.start();
-
             return new TCPClient(socket, readHandler);
         } catch (Exception e) {
-            System.out.println("异常关闭");
+            System.out.println("连接异常");
+            CloseUtils.close(socket);
         }
+
         return null;
     }
 
-    public void write(String str) throws IOException {
-        // 发送到服务器
-        printStream.println(str);
-    }
-
-    public void exit() {
-        readHandler.exit();
-        CloseUtils.close(printStream, socket);
-    }
 
     static class ReadHandler extends Thread {
         private boolean done = false;
