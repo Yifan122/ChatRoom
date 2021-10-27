@@ -12,6 +12,7 @@ public interface IoProvider extends Closeable {
 
     void unRegisterOutput(SocketChannel channel);
 
+
     abstract class HandleInputCallback implements Runnable {
         @Override
         public final void run() {
@@ -31,6 +32,12 @@ public interface IoProvider extends Closeable {
 
         public final void setAttach(Object attach) {
             this.attach = attach;
+        }
+
+        public final <T> T getAttach() {
+            @SuppressWarnings({"UnnecessaryLocalVariable", "unchecked"})
+            T attach = (T) this.attach;
+            return attach;
         }
 
         protected abstract void canProviderOutput(Object attach);

@@ -19,22 +19,14 @@ public class SocketChannelAdapter implements Sender, Receiver, Cloneable {
     private IoArgs.IoArgsEventListener receiveIoEventListener;
     private IoArgs.IoArgsEventListener sendIoEventListener;
 
+    private IoArgs receiveArgsTemp;
+
     public SocketChannelAdapter(SocketChannel channel, IoProvider ioProvider, OnChannelStatusChangedListener listener) throws IOException {
         this.channel = channel;
         this.ioProvider = ioProvider;
         this.listener = listener;
 
         this.channel.configureBlocking(false);
-    }
-
-    @Override
-    public boolean receiveAsync(IoArgs.IoArgsEventListener listener) throws IOException {
-        if (isClosed.get()) {
-            throw new IOException("Current channel is closed!");
-        }
-
-        receiveIoEventListener = listener;
-        return ioProvider.registerInput(channel, inputCallback);
     }
 
     @Override
@@ -61,6 +53,22 @@ public class SocketChannelAdapter implements Sender, Receiver, Cloneable {
         }
     }
 
+    @Override
+    public void setReceiveListener(IoArgs.IoArgsEventListener listener) {
+        receiveIoEventListener = listener;
+    }
+
+    @Override
+    public boolean receiveAsync(IoArgs args) throws IOException {
+        if (isClosed.get()) {
+            throw new IOException("Current channel is closed!");
+        }
+
+        receiveArgsTemp = args;
+
+        return ioProvider.registerInput(channel, inputCallback);
+    }
+
     public interface OnChannelStatusChangedListener {
         void onChannelClosed(SocketChannel channel);
     }
@@ -72,15 +80,13 @@ public class SocketChannelAdapter implements Sender, Receiver, Cloneable {
                 return;
             }
 
-            IoArgs ioArgs = new IoArgs();
+            IoArgs ioArgs = receiveArgsTemp;
             IoArgs.IoArgsEventListener listener = SocketChannelAdapter.this.receiveIoEventListener;
 
-            if (listener != null) {
-                listener.onStarted(ioArgs);
-            }
+            listener.onStarted(ioArgs);
 
             try {
-                if (ioArgs.read(channel) > 0 && listener != null) {
+                if (ioArgs.readFrom(channel) > 0) {
                     listener.onCompleted(ioArgs);
                 } else {
                     throw new IOException("Cannot read any data!");
@@ -100,8 +106,21 @@ public class SocketChannelAdapter implements Sender, Receiver, Cloneable {
                 return;
             }
 
-            // TO DO
-            sendIoEventListener.onCompleted(null);
+            IoArgs args = getAttach();
+            IoArgs.IoArgsEventListener listener = sendIoEventListener;
+
+            listener.onStarted(args);
+
+            try {
+                if (args.writeTo(channel) > 0){
+                    listener.onCompleted(args);
+                } else {
+                    throw new IOException("Cannot write any data!");
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+                CloseUtils.close(SocketChannelAdapter.this);
+            }
         }
     };
 }

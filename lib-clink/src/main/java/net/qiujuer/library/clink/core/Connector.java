@@ -1,6 +1,8 @@
 package net.qiujuer.library.clink.core;
 
 
+import net.qiujuer.library.clink.box.StringReceivePacket;
+import net.qiujuer.library.clink.box.StringSendPacket;
 import net.qiujuer.library.clink.impl.SocketChannelAdapter;
 
 import java.io.Closeable;
@@ -13,6 +15,8 @@ public class Connector implements Closeable, SocketChannelAdapter.OnChannelStatu
     private SocketChannel channel;
     private Sender sender;
     private Receiver receiver;
+    private ReceiveDisPatcher receiveDisPatcher;
+    private SendDispatcher sendDispatcher;
 
     public void setup(SocketChannel socketChannel) throws IOException {
         this.channel = socketChannel;
@@ -22,17 +26,11 @@ public class Connector implements Closeable, SocketChannelAdapter.OnChannelStatu
         this.sender = adapter;
         this.receiver = adapter;
 
-        readNextMessage();
     }
 
-    private void readNextMessage() {
-        if (receiver != null) {
-            try {
-                receiver.receiveAsync(echoReceiveListener);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+    public void send(String msg) {
+        SendPacket packet = new StringSendPacket(msg);
+        sendDispatcher.send(packet);
     }
 
     public void close() throws IOException {
@@ -44,21 +42,17 @@ public class Connector implements Closeable, SocketChannelAdapter.OnChannelStatu
 
     }
 
-    private IoArgs.IoArgsEventListener echoReceiveListener = new IoArgs.IoArgsEventListener() {
-        @Override
-        public void onStarted(IoArgs args) {
-
-        }
-
-        @Override
-        public void onCompleted(IoArgs args) {
-            onReceiveNewMessage(args.bufferString());
-
-            readNextMessage();
-        }
-    };
-
     protected void onReceiveNewMessage(String str) {
         System.out.println(key.toString() + ":" + str);
     }
+
+    private ReceiveDisPatcher.ReceivePacketCallback receivePacketCallback = new ReceiveDisPatcher.ReceivePacketCallback() {
+        @Override
+        public void onReceivePacketCompleted(ReceivePacket packet) {
+            if (packet instanceof StringReceivePacket) {
+                String msg = ((StringReceivePacket) packet).string();
+                onReceiveNewMessage(msg);
+            }
+        }
+    };
 }
