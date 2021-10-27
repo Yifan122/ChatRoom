@@ -36,6 +36,7 @@ public class SocketChannelAdapter implements Sender, Receiver, Cloneable {
         }
 
         sendIoEventListener = listener;
+        outputCallback.setAttach(args);
 
         return ioProvider.registerOutput(channel, outputCallback);
     }

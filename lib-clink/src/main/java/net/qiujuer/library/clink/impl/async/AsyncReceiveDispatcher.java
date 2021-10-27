@@ -2,16 +2,15 @@ package net.qiujuer.library.clink.impl.async;
 
 import net.qiujuer.library.clink.box.StringReceivePacket;
 import net.qiujuer.library.clink.core.IoArgs;
-import net.qiujuer.library.clink.core.ReceiveDisPatcher;
+import net.qiujuer.library.clink.core.ReceiveDispatcher;
 import net.qiujuer.library.clink.core.ReceivePacket;
 import net.qiujuer.library.clink.core.Receiver;
 import net.qiujuer.library.clink.utils.CloseUtils;
 
 import java.io.IOException;
-import java.nio.Buffer;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class AsyncReceiveDispatcher implements ReceiveDisPatcher {
+public class AsyncReceiveDispatcher implements ReceiveDispatcher {
     private final AtomicBoolean isClosed = new AtomicBoolean(false);
 
     private final Receiver receiver;
@@ -31,7 +30,7 @@ public class AsyncReceiveDispatcher implements ReceiveDisPatcher {
 
     @Override
     public void start() {
-
+        registerReceive();
     }
 
     @Override

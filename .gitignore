@@ -26,7 +26,7 @@ out
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 
-lib-clink/target/generated-sources/
-sample-client/target/generated-sources/
-sample-foo/target/generated-sources/
-sample-server/target/generated-sources/
+lib-clink/target/*
+sample-client/target/*
+sample-foo/target/*
+sample-server/target/*

@@ -15,56 +15,43 @@ import java.util.Iterator;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class ClientHandler {
-    private final Connector connector;
-    private final SocketChannel socketChannel;
-    private final ClientWriteHandler writeHandler;
+public class ClientHandler extends Connector{
     private final ClientHandlerCallBack clientHandlerCallBack;
 
     public ClientHandler(SocketChannel socketChannel, ClientHandlerCallBack clientHandlerCallBack) throws IOException {
-        this.socketChannel = socketChannel;
-
-        connector = new Connector() {
-            @Override
-            public void onChannelClosed(SocketChannel channel) {
-                super.onChannelClosed(channel);
-                try {
-                    exitBySelf();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-
-            @Override
-            protected void onReceiveNewMessage(String str) {
-                super.onReceiveNewMessage(str);
-                clientHandlerCallBack.onMsgArrived(str, ClientHandler.this);
-            }
-        };
-        connector.setup(socketChannel);
-
-        Selector writeSelector = Selector.open();
-        socketChannel.register(writeSelector, SelectionKey.OP_WRITE);
-        this.writeHandler = new ClientWriteHandler(writeSelector);
         this.clientHandlerCallBack = clientHandlerCallBack;
         System.out.println("新客户端连接：" + socketChannel.getRemoteAddress());
+
+        setup(socketChannel);
     }
 
     public void exit() throws IOException {
-        writeHandler.exit();
-        System.out.println("客户端已退出：" + socketChannel.getRemoteAddress());
-        CloseUtils.close(socketChannel);
+        CloseUtils.close(this);
+        System.out.println("客户端已退出：" + channel.getRemoteAddress());
 
     }
 
-    public void send(String str) {
-        writeHandler.send(str);
+    @Override
+    public void onChannelClosed(SocketChannel channel) {
+        super.onChannelClosed(channel);
+        exitBySelf();
+    }
+
+    @Override
+    protected void onReceiveNewMessage(String str) {
+        super.onReceiveNewMessage(str);
+        clientHandlerCallBack.onMsgArrived(str, this);
     }
 
 
-    private void exitBySelf() throws IOException {
-        exit();
-        clientHandlerCallBack.onSelfClosed(this);
+    private void exitBySelf() {
+        try {
+            exit();
+            clientHandlerCallBack.onSelfClosed(this);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     public interface ClientHandlerCallBack {
@@ -72,59 +59,4 @@ public class ClientHandler {
         void onMsgArrived(String str, ClientHandler handler);
     }
 
-    class ClientWriteHandler {
-        private boolean done = false;
-        private final Selector selector;
-        private final ByteBuffer buffer;
-        private final ExecutorService executorService;
-
-        ClientWriteHandler(Selector selector) {
-            this.selector = selector;
-            this.buffer = ByteBuffer.allocate(256);
-            this.executorService = Executors.newSingleThreadExecutor();
-        }
-
-        void exit() {
-            done = true;
-            CloseUtils.close(selector);
-            executorService.shutdownNow();
-        }
-
-        void send(String str) {
-            executorService.execute(new WriteRunnable(str));
-        }
-
-        class WriteRunnable implements Runnable {
-            private final String msg;
-
-            WriteRunnable(String msg) {
-                this.msg = msg + "\n";
-            }
-
-            @Override
-            public void run() {
-                if (ClientWriteHandler.this.done) {
-                    return;
-                }
-
-                buffer.clear();
-                buffer.put(msg.getBytes());
-                // 反转
-                buffer.flip();
-
-                while (!done && buffer.hasRemaining()) {
-                    try {
-                        int write = socketChannel.write(buffer);
-                        if (write < 0) {
-                            System.out.println("无法发送数据");
-                            exitBySelf();
-                            break;
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        }
-    }
 }
