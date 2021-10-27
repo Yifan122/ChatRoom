@@ -31,7 +31,7 @@ public class TCPClient extends Connector {
 
     public static TCPClient startWith(ServerInfo info) throws IOException {
         SocketChannel channel = SocketChannel.open();
-        channel.configureBlocking(false);
+//        channel.configureBlocking(false);
         channel.connect(new InetSocketAddress(Inet4Address.getByName(info.getAddress()), info.getPort()));
 
 

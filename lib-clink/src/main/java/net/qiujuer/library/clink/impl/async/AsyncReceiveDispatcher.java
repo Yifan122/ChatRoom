@@ -24,8 +24,8 @@ public class AsyncReceiveDispatcher implements ReceiveDispatcher {
 
     public AsyncReceiveDispatcher(Receiver receiver, ReceivePacketCallback callback) {
         this.receiver = receiver;
-        this.callback = callback;
         this.receiver.setReceiveListener(ioArgsEventListener);
+        this.callback = callback;
     }
 
     @Override
@@ -40,28 +40,18 @@ public class AsyncReceiveDispatcher implements ReceiveDispatcher {
 
     @Override
     public void close() throws IOException {
-
+        if (isClosed.compareAndSet(false, true)) {
+            ReceivePacket packet = packetTemp;
+            if (packet != null) {
+                packetTemp = null;
+                CloseUtils.close(packet);
+            }
+        }
     }
 
-    private final IoArgs.IoArgsEventListener ioArgsEventListener = new IoArgs.IoArgsEventListener() {
-        @Override
-        public void onStarted(IoArgs args) {
-            int receiveSize;
-            if (packetTemp == null) {
-                receiveSize = 4;
-            } else {
-                receiveSize = Math.min(total - position, args.capacity());
-            }
-
-            args.limit(receiveSize);
-        }
-
-        @Override
-        public void onCompleted(IoArgs args) {
-            assemblePacket(args);
-            registerReceive();
-        }
-    };
+    private void closeAndNotify() {
+        CloseUtils.close(this);
+    }
 
     private void registerReceive() {
         try {
@@ -71,10 +61,10 @@ public class AsyncReceiveDispatcher implements ReceiveDispatcher {
         }
     }
 
-    private void closeAndNotify() {
-        CloseUtils.close(this);
-    }
 
+    /**
+     * 解析数据到Packet
+     */
     private void assemblePacket(IoArgs args) {
         if (packetTemp == null) {
             int length = args.readLength();
@@ -85,24 +75,49 @@ public class AsyncReceiveDispatcher implements ReceiveDispatcher {
         }
 
 
-        // TO DO ???
+        // TODO ???
         int count = args.writeTo(buffer, 0);
         if (count > 0) {
             packetTemp.save(buffer, count);
             position += count;
 
-            if(position == total) {
+            // 检查是否已完成一份Packet接收
+            if (position == total) {
                 completePacket();
                 packetTemp = null;
             }
         }
     }
 
+    /**
+     * 完成数据接收操作
+     */
     private void completePacket() {
         ReceivePacket packet = this.packetTemp;
         CloseUtils.close(packet);
         callback.onReceivePacketCompleted(packet);
     }
 
+
+    private final IoArgs.IoArgsEventListener ioArgsEventListener = new IoArgs.IoArgsEventListener() {
+        @Override
+        public void onStarted(IoArgs args) {
+            int receiveSize;
+            if (packetTemp == null) {
+                receiveSize = 4;
+            } else {
+                receiveSize = Math.min(total - position, args.capacity());
+            }
+            // 设置本次接收数据大小
+            args.limit(receiveSize);
+        }
+
+        @Override
+        public void onCompleted(IoArgs args) {
+            assemblePacket(args);
+            // 继续接收下一条数据
+            registerReceive();
+        }
+    };
 
 }

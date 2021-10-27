@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class IoSelectorProvider implements IoProvider {
     private final AtomicBoolean isClosed = new AtomicBoolean(false);
 
+    // 是否处于某个过程
     private final AtomicBoolean inRegInput = new AtomicBoolean(false);
     private final AtomicBoolean inRegOutput = new AtomicBoolean(false);
 
@@ -33,12 +34,15 @@ public class IoSelectorProvider implements IoProvider {
     private final ExecutorService outputHandlePool;
 
     public IoSelectorProvider() throws IOException {
-        this.readSelector = Selector.open();
-        this.writeSelector = Selector.open();
+        readSelector = Selector.open();
+        writeSelector = Selector.open();
 
-        this.inputHandlePool = Executors.newFixedThreadPool(4, new IoProviderThreadFactory("IoProvider-Input-Thread-"));
-        this.outputHandlePool = Executors.newFixedThreadPool(4, new IoProviderThreadFactory("IoProvider-output-Thread-"));
+        inputHandlePool = Executors.newFixedThreadPool(4,
+                new IoProviderThreadFactory("IoProvider-Input-Thread-"));
+        outputHandlePool = Executors.newFixedThreadPool(4,
+                new IoProviderThreadFactory("IoProvider-Output-Thread-"));
 
+        // 开始输出输入的监听
         startRead();
         startWrite();
     }
@@ -66,14 +70,15 @@ public class IoSelectorProvider implements IoProvider {
                     }
                 }
             }
-        };
 
+
+        };
         thread.setPriority(Thread.MAX_PRIORITY);
         thread.start();
     }
 
     private void startWrite() {
-        Thread thread = new Thread("Clink IoSelectorProvider ReadSelector Thread") {
+        Thread thread = new Thread("Clink IoSelectorProvider WriteSelector Thread") {
             @Override
             public void run() {
                 while (!isClosed.get()) {
@@ -83,7 +88,7 @@ public class IoSelectorProvider implements IoProvider {
                             continue;
                         }
 
-                        Set<SelectionKey> selectionKeys = readSelector.selectedKeys();
+                        Set<SelectionKey> selectionKeys = writeSelector.selectedKeys();
                         for (SelectionKey selectionKey : selectionKeys) {
                             if (selectionKey.isValid()) {
                                 handleSelection(selectionKey, SelectionKey.OP_WRITE, outputCallbackMap, outputHandlePool);
@@ -96,14 +101,15 @@ public class IoSelectorProvider implements IoProvider {
                 }
             }
         };
-
         thread.setPriority(Thread.MAX_PRIORITY);
         thread.start();
     }
 
+
     @Override
     public boolean registerInput(SocketChannel channel, HandleInputCallback callback) {
-        return registerSelection(channel, readSelector, SelectionKey.OP_READ, inRegInput, inputCallbackMap, callback) != null;
+        return registerSelection(channel, readSelector, SelectionKey.OP_READ, inRegInput,
+                inputCallbackMap, callback) != null;
     }
 
     @Override
@@ -138,6 +144,65 @@ public class IoSelectorProvider implements IoProvider {
         }
     }
 
+    private static void waitSelection(final AtomicBoolean locker) {
+        //noinspection SynchronizationOnLocalVariableOrMethodParameter
+        synchronized (locker) {
+            if (locker.get()) {
+                try {
+                    locker.wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+
+    private static SelectionKey registerSelection(SocketChannel channel, Selector selector,
+                                                  int registerOps, AtomicBoolean locker,
+                                                  HashMap<SelectionKey, Runnable> map,
+                                                  Runnable runnable) {
+
+        //noinspection SynchronizationOnLocalVariableOrMethodParameter
+        synchronized (locker) {
+            // 设置锁定状态
+            locker.set(true);
+
+            try {
+                // 唤醒当前的selector，让selector不处于select()状态
+                selector.wakeup();
+
+                SelectionKey key = null;
+                if (channel.isRegistered()) {
+                    // 查询是否已经注册过
+                    key = channel.keyFor(selector);
+                    if (key != null) {
+                        key.interestOps(key.readyOps() | registerOps);
+                    }
+                }
+
+                if (key == null) {
+                    // 注册selector得到Key
+                    key = channel.register(selector, registerOps);
+                    // 注册回调
+                    map.put(key, runnable);
+                }
+
+                return key;
+            } catch (ClosedChannelException e) {
+                return null;
+            } finally {
+                // 解除锁定状态
+                locker.set(false);
+                try {
+                    // 通知
+                    locker.notify();
+                } catch (Exception ignored) {
+                }
+            }
+        }
+    }
+
     private static void unRegisterSelection(SocketChannel channel, Selector selector,
                                             Map<SelectionKey, Runnable> map) {
         if (channel.isRegistered()) {
@@ -151,58 +216,11 @@ public class IoSelectorProvider implements IoProvider {
         }
     }
 
-    private static SelectionKey registerSelection(SocketChannel channel, Selector selector,
-                                                  int registerOps, AtomicBoolean locker,
-                                                  HashMap<SelectionKey, Runnable> map,
-                                                  Runnable runnable) {
-        synchronized (locker) {
-            locker.set(true);
-
-            try {
-                selector.wakeup();
-
-                SelectionKey key = null;
-                if(channel.isRegistered()) {
-                    key = channel.keyFor(selector);
-                    if (key != null) {
-                        key.interestOps(key.readyOps() | registerOps);
-                    }
-                }
-
-                if (key == null) {
-                    key = channel.register(selector, registerOps);
-
-                    map.put(key, runnable);
-                }
-                return key;
-            }catch (ClosedChannelException e) {
-                return null;
-            } finally {
-                locker.set(false);
-                try {
-                    locker.notifyAll();
-                } catch (Exception ignored) {
-
-                }
-            }
-        }
-    }
-
-    private static void waitSelection(final AtomicBoolean locker) {
-        synchronized (locker) {
-            if (locker.get()) {
-                try {
-                    locker.wait();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-    }
-
     private static void handleSelection(SelectionKey key, int keyOps,
                                         HashMap<SelectionKey, Runnable> map,
                                         ExecutorService pool) {
+        // 重点
+        // 取消继续对keyOps的监听
         key.interestOps(key.readyOps() & ~keyOps);
 
         Runnable runnable = null;
@@ -213,9 +231,11 @@ public class IoSelectorProvider implements IoProvider {
         }
 
         if (runnable != null && !pool.isShutdown()) {
-            pool.submit(runnable);
+            // 异步调度
+            pool.execute(runnable);
         }
     }
+
 
     static class IoProviderThreadFactory implements ThreadFactory {
         private final ThreadGroup group;
@@ -223,10 +243,10 @@ public class IoSelectorProvider implements IoProvider {
         private final String namePrefix;
 
         IoProviderThreadFactory(String namePrefix) {
-            this.namePrefix = namePrefix;
             SecurityManager s = System.getSecurityManager();
-            group = (s != null) ? s.getThreadGroup() :
+            this.group = (s != null) ? s.getThreadGroup() :
                     Thread.currentThread().getThreadGroup();
+            this.namePrefix = namePrefix;
         }
 
         public Thread newThread(Runnable r) {
