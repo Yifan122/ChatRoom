@@ -1,6 +1,8 @@
 package net.qiujuer.lesson.sample.client;
 
 import net.qiujuer.lesson.sample.client.bean.ServerInfo;
+import net.qiujuer.library.clink.core.IoContext;
+import net.qiujuer.library.clink.impl.IoSelectorProvider;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -10,6 +12,10 @@ public class ClientTest {
     private static boolean done;
 
     public static void main(String[] args) throws IOException {
+        IoContext.setup()
+                .ioProvider(new IoSelectorProvider())
+                .start();
+
         ServerInfo info = UDPSearcher.searchServer(10000);
         System.out.println("Server:" + info);
         if (info == null) {
@@ -19,7 +25,7 @@ public class ClientTest {
         // 当前连接数量
         int size = 0;
         final List<TCPClient> tcpClients = new ArrayList<>();
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 10; i++) {
             try {
                 TCPClient tcpClient = TCPClient.startWith(info);
                 if (tcpClient == null) {
